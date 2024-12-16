@@ -4,16 +4,15 @@ document.addEventListener('deviceready', function () {
 });
 
 function initializeApp() {
-    // Add event listeners to buttons
     document.getElementById('addIncidentBtn').addEventListener('click', showAddIncident);
     document.getElementById('viewIncidentsBtn').addEventListener('click', showIncidents);
     document.getElementById('loginBtn').addEventListener('click', showLogin);
 
-    showLogin(); // Show login by default
+    showLogin();
 }
 
 const API_URL = "https://demo.wp-api.org/wp-json/wp/v2";
-let authToken = ""; // Store the user's token after login
+let authToken = "";
 
 function showAddIncident() {
     const content = document.getElementById('content');
@@ -43,7 +42,6 @@ function submitIncident() {
     const description = document.getElementById('description').value;
     const imageFile = document.getElementById('image').files[0];
 
-    // Upload image first
     const formData = new FormData();
     formData.append('file', imageFile);
 
@@ -58,7 +56,6 @@ function submitIncident() {
         .then((media) => {
             const mediaId = media.id;
 
-            // Get location and submit incident
             navigator.geolocation.getCurrentPosition((position) => {
                 const latitude = position.coords.latitude;
                 const longitude = position.coords.longitude;
@@ -72,7 +69,7 @@ function submitIncident() {
                         longitude,
                     },
                     featured_media: mediaId,
-                    status: "publish", // Automatically publish the post
+                    status: "publish",
                 };
 
                 fetch(`${API_URL}/posts`, {
@@ -157,14 +154,13 @@ function login() {
     })
         .then((response) => response.json())
         .then((data) => {
-            authToken = data.token; // Save the token for authenticated requests
+            authToken = data.token;
             alert('Login successful');
             showIncidents();
         })
         .catch((error) => console.error('Error during login:', error));
 }
 
-// Example function to configure push notifications (requires cordova-plugin-firebase-messaging)
 function configurePushNotifications() {
     FirebasePlugin.onMessageReceived((message) => {
         console.log('New notification:', message);
