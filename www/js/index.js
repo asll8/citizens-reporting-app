@@ -4,14 +4,38 @@ document.addEventListener('deviceready', function () {
 });
 
 function initializeApp() {
-    document.getElementById('addIncidentBtn').addEventListener('click', showAddIncident);
-    document.getElementById('viewIncidentsBtn').addEventListener('click', showIncidents);
-    document.getElementById('loginBtn').addEventListener('click', showLogin);
+    authToken = localStorage.getItem('authToken') || "";
+    if (authToken) {
+        showIncidents();
+        document.getElementById('addIncidentBtn').style.display = 'inline-block';
+        document.getElementById('viewIncidentsBtn').style.display = 'inline-block';
+    } else {
+        showLogin();
+    }
 
-    showLogin();
+    document.getElementById('addIncidentBtn').addEventListener('click', () => {
+        if (!authToken) {
+            alert("Please log in to add an incident.");
+            showLogin();
+        } else {
+            showAddIncident();
+        }
+    });
+
+    document.getElementById('viewIncidentsBtn').addEventListener('click', () => {
+        if (!authToken) {
+            alert("Please log in to view incidents.");
+            showLogin();
+        } else {
+            showIncidents();
+        }
+    });
+
+    document.getElementById('loginBtn').addEventListener('click', showLogin);
 }
 
-const API_URL = "https://demo.wp-api.org/wp-json/wp/v2";
+
+const API_URL = "https://jsonplaceholder.typicode.com";
 let authToken = "";
 
 function showAddIncident() {
@@ -37,77 +61,78 @@ function showAddIncident() {
 }
 
 function submitIncident() {
+    if (!authToken) {
+        alert("You must be logged in to submit an incident.");
+        showLogin();
+        return;
+    }
+
     const title = document.getElementById('title').value;
     const category = document.getElementById('category').value;
     const description = document.getElementById('description').value;
-    const imageFile = document.getElementById('image').files[0];
 
-    const formData = new FormData();
-    formData.append('file', imageFile);
+    const incidentData = {
+        title: title,
+        body: description,
+        userId: 1, // For testing
+    };
 
-    fetch(`${API_URL}/media`, {
+    fetch(`${API_URL}/posts`, {
         method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify(incidentData),
+    })
+        .then((response) => response.json())
+        .then((data) => {
+            console.log('Incident submitted:', data);
+            alert('Incident reported successfully!');
+            showIncidents();
+        })
+        .catch((error) => {
+            console.error('Error submitting incident:', error);
+            alert('Failed to submit the incident. Please try again.');
+        });
+}
+
+
+function showIncidents() {
+    if (!authToken) {
+        alert("You must be logged in to view incidents.");
+        showLogin();
+        return;
+    }
+
+    const content = document.getElementById('content');
+    content.innerHTML = '<h2>Loading...</h2>';
+
+    fetch(`${API_URL}/posts`, {
+        method: 'GET',
         headers: {
             'Authorization': `Bearer ${authToken}`,
         },
-        body: formData,
     })
-        .then((response) => response.json())
-        .then((media) => {
-            const mediaId = media.id;
-
-            navigator.geolocation.getCurrentPosition((position) => {
-                const latitude = position.coords.latitude;
-                const longitude = position.coords.longitude;
-
-                const incidentData = {
-                    title: title,
-                    categories: [category],
-                    content: description,
-                    meta: {
-                        latitude,
-                        longitude,
-                    },
-                    featured_media: mediaId,
-                    status: "publish",
-                };
-
-                fetch(`${API_URL}/posts`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${authToken}`,
-                    },
-                    body: JSON.stringify(incidentData),
-                })
-                    .then((response) => response.json())
-                    .then((data) => {
-                        alert('Incident reported successfully');
-                        showIncidents();
-                    })
-                    .catch((error) => console.error('Error submitting incident:', error));
-            });
-        })
-        .catch((error) => console.error('Error uploading image:', error));
-}
-
-function showIncidents() {
-    const content = document.getElementById('content');
-    fetch(`${API_URL}/posts`)
         .then((response) => response.json())
         .then((posts) => {
             content.innerHTML = '<h2>Submitted Incidents</h2>';
             posts.forEach((post) => {
                 content.innerHTML += `
                     <div class="incident">
-                        <h3>${post.title.rendered}</h3>
-                        <p>${post.content.rendered}</p>
+                        <h3>${post.title}</h3>
+                        <p>${post.body}</p>
                     </div>
                 `;
             });
         })
-        .catch((error) => console.error('Error fetching incidents:', error));
+        .catch((error) => {
+            console.error('Error fetching incidents:', error);
+            alert('Failed to load incidents. Please try again.');
+            showLogin();
+        });
 }
+
 
 function showIncidentsByCategory(categoryId) {
     const content = document.getElementById('content');
@@ -154,13 +179,26 @@ function login() {
     })
         .then((response) => response.json())
         .then((data) => {
-            authToken = data.token;
-            alert('Login successful');
-            showIncidents();
+            if (data.token) {
+                authToken = data.token;
+                console.log('Token received:', authToken);
+                alert('Login successful');
+
+                showIncidents();
+            } else {
+                throw new Error('Invalid login. Please check your credentials.');
+            }
         })
-        .catch((error) => console.error('Error during login:', error));
+        .catch((error) => {
+            console.error('Error during login:', error);
+            alert('Login failed. Please try again.');
+        });
+
+    localStorage.setItem('authToken', data.token);
 }
 
+
+/**
 function configurePushNotifications() {
     FirebasePlugin.onMessageReceived((message) => {
         console.log('New notification:', message);
@@ -169,3 +207,4 @@ function configurePushNotifications() {
         console.error('Error with push notifications:', error);
     });
 }
+*/
